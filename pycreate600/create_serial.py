@@ -3,7 +3,8 @@ import struct
 
 
 class SerialCommandInterface(object):
-    """Class that handles sending commands to the Roomba.
+    """
+    Class that handles sending commands to the Roomba.
     
     Writes will take in tuples and format the data to transfer to the Roomba.
     """
@@ -12,20 +13,22 @@ class SerialCommandInterface(object):
         """
         Constructor.
 
-        Creates the serial port, but does not open it. Call open(port) to open
+        Creates the serial port, but does not open it. Call open() to open
         it.
         """
         self.serial = pyserial.Serial()
 
     def __del__(self):
-        """Destructor.
+        """
+        Destructor.
 
         Closes the serial port.
         """
         self.close()
 
     def open(self, port, baud=115200, timeout=1):
-        """Opens a serial port to the Roomba.
+        """
+        Opens a serial port to the Roomba.
 
         Args:
             port: The serial port to open.
@@ -51,7 +54,8 @@ class SerialCommandInterface(object):
             raise Exception("Failed to {} at {}".format(port, baud))
 
     def write(self, opcode, data=None):
-        """Writes a command to the Roomba.
+        """
+        Writes a command to the Roomba.
 
         Args:
             opcode: See create api
@@ -64,7 +68,8 @@ class SerialCommandInterface(object):
         self.serial.write(struct.pack("B" * len(cmd), *cmd))
 
     def read(self, num_bytes):
-        """Read a string of bytes from the Roomba.
+        """
+        Read a string of bytes from the Roomba.
 
         Args:
             num_bytes: The number of bytes to read.
