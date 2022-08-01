@@ -1,6 +1,6 @@
 from struct import Struct, unpack
 from collections import namedtuple
-from oi import WHEEL_OVERCURRENT, BUMPS_WHEEL_DROPS, BUTTONS, CHARGE_SOURCE, LIGHT_BUMPER, STASIS
+from .oi import WHEEL_OVERCURRENT, BUMPS_WHEEL_DROPS, BUTTONS, CHARGE_SOURCE, LIGHT_BUMPER, STASIS
 
 
 # Build some packet decoders:

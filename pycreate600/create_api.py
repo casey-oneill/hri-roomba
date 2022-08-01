@@ -3,7 +3,6 @@ import time
 from pycreate600.packets import SensorPacketDecoder
 from pycreate600.create_serial import SerialCommandInterface
 from pycreate600.oi import OPCODES
-from pycreate600.oi import DRIVE
 
 
 class Create(object):
@@ -27,13 +26,16 @@ class Create(object):
         """
         Destructor.
         """
-        # stop motors
+        # stop movement
         self.drive_stop()
         time.sleep(self.sleep_timer)
 
+        # stop motors
+        self.motors_stop()
+        time.sleep(self.sleep_timer)
+
         # turn off LEDs
-        self.led()
-        self.digit_led_ascii()
+        self.leds()
         time.sleep(self.sleep_timer)
 
     # ------------------- Mode Commands ------------------------
@@ -136,7 +138,7 @@ class Create(object):
         self.SCI.write(OPCODES.POWER)
         time.sleep(self.sleep_timer)
 
-    # ------------------- Drive Commands ------------------------
+    # ------------------- Actuator Commands ------------------------
 
     def drive_direct(self, r_vel, l_vel):
         """
@@ -169,6 +171,12 @@ class Create(object):
     def drive_stop(self):
         self.drive_direct(0, 0)
         time.sleep(self.sleep_timer)
+    
+    def motors(self, data):
+        self.SCI.write(OPCODES.MOTORS, (data, ))
+    
+    def motors_stop(self):
+        self.SCI.write(OPCODES.MOTORS, (0, ))
 
     def _clamp(self, value, min, max):
         """

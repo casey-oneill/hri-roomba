@@ -46,9 +46,9 @@ class SerialCommandInterface(object):
         self.serial.open()
         if self.serial.is_open:
             print('-'*40)
-            print(' Opened serial connection')
-            print('   port: {}'.format(self.ser.port))
-            print('   datarate: {} bps'.format(self.ser.baudrate))
+            print('Opened serial connection')
+            print('\tport: {}'.format(self.serial.port))
+            print('\tdatarate: {} bps'.format(self.serial.baudrate))
             print('-'*40)
         else:
             raise Exception("Failed to {} at {}".format(port, baud))
@@ -91,6 +91,6 @@ class SerialCommandInterface(object):
         Closes the serial connection.
         """
         if self.serial.is_open:
-            print("Closing poirt {} at {}".format(
-                self.ser.port, self.ser.baudrate))
+            print("Closing port {} at {}".format(
+                self.serial.port, self.serial.baudrate))
             self.serial.close()
