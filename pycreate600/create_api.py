@@ -1,5 +1,6 @@
 import struct
 import time
+from pycreate600.errors import NoConnectionError
 from pycreate600.packets import SensorPacketDecoder
 from pycreate600.create_serial import SerialCommandInterface
 from pycreate600.oi import OPCODES
@@ -47,8 +48,11 @@ class Create(object):
         Changes mode to Passive. You must always send the Start command before
         sending any other commands to the OI.
         """
-        self.SCI.write(OPCODES.START)
-        time.sleep(self.sleep_timer)
+        try:
+            self.SCI.write(OPCODES.START)
+            time.sleep(self.sleep_timer)
+        except Exception:
+            raise NoConnectionError
 
     def reset(self):
         """

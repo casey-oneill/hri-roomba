@@ -4,6 +4,8 @@ import numpy as np
 import random
 import time
 
+from pycreate600.errors import NoConnectionError
+
 
 class Directions(IntEnum):
     FORWARD = 0,
@@ -99,11 +101,13 @@ if __name__ == "__main__":
         while True:
             try:
                 bot.start()
-                bot.safe()
+                bot.full()
 
                 clean(bot)
-            except Exception:
+            except NoConnectionError:
                 print("No connection detected.")
+            except Exception:
+                print("Error occured.")
             time.sleep(3)
     except KeyboardInterrupt:
         print("Goodbye!")
