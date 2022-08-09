@@ -19,11 +19,6 @@ class State(Enum):
     NEUROTIC = 1
 
 
-class SONGS(IntEnum):
-    SAD = 0,
-    HAPPY = 1
-
-
 directions = [np.array([1, 1]), np.array([-1, -1]),
               np.array([0, 1]), np.array([1, 0])]
 random.seed()
@@ -45,6 +40,9 @@ def has_task():
 
     tasks = requests.get(tasks_url, headers={"Authorization": auth}).json()
     if any(i["complete"] == False and i["skipped"] == False for i in tasks):
+        return True
+    
+    if tasks[len(tasks)-1]["skipped"] == True:
         return True
     return False
 
@@ -77,19 +75,19 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
             time.sleep(0.3)
             timeout -= 0.3
 
-            sensors = bot.sensors()
-            if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
-                print("Bump Middle!")
-                is_colliding = True
-                collision = Directions.FORWARD
-            elif sensors.bumps_wheeldrops.bump_left == True:
-                print("Bump Left!")
-                is_colliding = True
-                collision = Directions.LEFT
-            elif sensors.bumps_wheeldrops.bump_right == True:
-                print("Bump Right!")
-                is_colliding = True
-                collision = Directions.RIGHT
+            # sensors = bot.sensors()
+            # if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
+            #     print("Bump Middle!")
+            #     is_colliding = True
+            #     collision = Directions.FORWARD
+            # elif sensors.bumps_wheeldrops.bump_left == True:
+            #     print("Bump Left!")
+            #     is_colliding = True
+            #     collision = Directions.LEFT
+            # elif sensors.bumps_wheeldrops.bump_right == True:
+            #     print("Bump Right!")
+            #     is_colliding = True
+            #     collision = Directions.RIGHT
 
             if timeout <= 0:
                 is_cleaning = False
@@ -166,19 +164,19 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
             time.sleep(0.3)
             timeout -= 0.3
 
-            sensors = bot.sensors()
-            if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
-                print("Bump Middle.")
-                is_colliding = True
-                collision = Directions.FORWARD
-            elif sensors.bumps_wheeldrops.bump_left == True:
-                print("Bump Left.")
-                is_colliding = True
-                collision = Directions.LEFT
-            elif sensors.bumps_wheeldrops.bump_right == True:
-                print("Bump Right.")
-                is_colliding = True
-                collision = Directions.RIGHT
+            # sensors = bot.sensors()
+            # if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
+            #     print("Bump Middle.")
+            #     is_colliding = True
+            #     collision = Directions.FORWARD
+            # elif sensors.bumps_wheeldrops.bump_left == True:
+            #     print("Bump Left.")
+            #     is_colliding = True
+            #     collision = Directions.LEFT
+            # elif sensors.bumps_wheeldrops.bump_right == True:
+            #     print("Bump Right.")
+            #     is_colliding = True
+            #     collision = Directions.RIGHT
 
             if timeout <= 0:
                 is_cleaning = False
@@ -192,8 +190,6 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
             bot.drive_stop()
             time.sleep(1)
             timeout -= 1
-
-            bot.play_song(SONGS.SAD)
 
             print("Changing directions.")
             movement = directions[Directions.BACK] * vel
@@ -232,9 +228,6 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
 
     return 0
 
-def create_songs(bot: Create):
-    bot.song(SONGS.SAD, [72, 12, 20, 24, 67, 12, 20, 24, 64])
-    bot.song(SONGS.HAPPY, [76, 12, 76, 12, 20, 12, 76, 12, 20, 12, 72, 12, 76, 12, 20, 12, 79, 12, 20, 36, 67, 12, 20, 36])
 
 if __name__ == "__main__":
     port = "COM4"
@@ -245,29 +238,23 @@ if __name__ == "__main__":
     
     try:
         bot = Create(port=port)
+        try:
+            bot.start()
+            bot.full()
 
-        while True:
-            try:
-                bot.start()
-                bot.full()
-
-                create_songs(bot)
-
-                timeout = 5 * 60
-                while timeout > 0:
-                    if state == State.NEUTRAL:
-                        bot.play_song(SONGS.HAPPY)
-                        bot.leds(0, 0, 255)
-                        timeout = clean(bot, duration=(timeout / 60))
-                    else:
-                        bot.play_song(SONGS.SAD)
-                        bot.leds(8, 255, 128)
-                        timeout = clean_neurotic(bot, duration=(timeout / 60))
-            except NoConnectionError:
-                print("No connection detected.")
-            except Exception:
-                print("Error occured.")
-            time.sleep(3)
+            timeout = 5 * 60
+            while timeout > 0:
+                if state == State.NEUTRAL:
+                    bot.leds(0, 0, 255)
+                    timeout = clean(bot, duration=(timeout / 60))
+                else:
+                    bot.leds(8, 255, 128)
+                    timeout = clean_neurotic(bot, duration=(timeout / 60))
+        except NoConnectionError:
+            print("No connection detected.")
+        except Exception:
+            print("Error occured.")
+        time.sleep(3)
     except KeyboardInterrupt:
         print("Goodbye!")
     except Exception:
