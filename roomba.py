@@ -23,28 +23,63 @@ directions = [np.array([1, 1]), np.array([-1, -1]),
               np.array([0, 1]), np.array([1, 0])]
 random.seed()
 
-login_url = "http://localhost:8080/api/auth/login"
-tasks_url = "http://localhost:8080/api/users/1/tasks"
-
-credentials = {
-    "username": "user",
-    "password": "password"
-}
-
+initial_state = State.NEUTRAL
 state = State.NEUTRAL
 
+post_success = False
 
-def has_task():
-    auth_res = requests.post(login_url, json=credentials).json()
-    auth = "Bearer " + auth_res["jwtToken"]
+def get_task():
+    try:
+        login_url = "https://robotportal.herokuapp.com/api/auth/login"
+        tasks_url = "https://robotportal.herokuapp.com/api/users/1/tasks"
 
-    tasks = requests.get(tasks_url, headers={"Authorization": auth}).json()
-    if any(i["complete"] == False and i["skipped"] == False for i in tasks):
-        return True
+        credentials = {
+            "username": "user",
+            "password": "password"
+        }
+
+        auth_res = requests.post(login_url, json=credentials).json()
+        auth = "Bearer " + auth_res["token"]
+
+        tasks = requests.get(tasks_url, headers={"Authorization": auth}).json()
+        if any(i["complete"] == False and i["skipped"] == False for i in tasks):
+            return True
+        
+        if tasks[len(tasks)-1]["skipped"] == True:
+            return True
+        return False
+    except Exception:
+        return False
     
-    if tasks[len(tasks)-1]["skipped"] == True:
-        return True
-    return False
+def post_task():
+    try:
+        login_url = "https://robotportal.herokuapp.com/api/auth/login"
+        info_url = "https://robotportal.herokuapp.com/api/users/info"
+        tasks_url = "https://robotportal.herokuapp.com/api/users/1/tasks"
+
+        credentials = {
+            "username": "user",
+            "password": "password"
+        }
+
+        auth_res = requests.post(login_url, json=credentials).json()
+        token = "Bearer " + auth_res["token"]
+
+        info_res = requests.get(info_url, headers={"Authorization": token}).json()
+        uid = info_res["id"]
+
+        # TODO: Calculate taskId
+
+        user_task = {
+            "userId": uid,
+            "taskId": 1
+        }
+
+        requests.post(tasks_url, json=user_task, headers={"Authorization": token}).json()
+    except Exception:
+        global post_success
+        post_success = False
+        return
 
 def clean(bot: Create, vel: int = 200, duration: int = 1):
     """
@@ -60,43 +95,48 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
     """
     print("Start cleaning!")
 
+    global post_success
+
     timeout = duration * 60
 
     movement = directions[Directions.FORWARD] * vel
     is_cleaning = True
 
-    bot.motors(13)
+    # bot.motors(13)
 
     while is_cleaning:
         is_colliding = False
         collision = None
         while is_cleaning and not is_colliding:
-            bot.drive_direct(int(movement[0]), int(movement[1]))
+            # bot.drive_direct(int(movement[0]), int(movement[1]))
             time.sleep(0.3)
             timeout -= 0.3
 
-            # sensors = bot.sensors()
-            # if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
-            #     print("Bump Middle!")
-            #     is_colliding = True
-            #     collision = Directions.FORWARD
-            # elif sensors.bumps_wheeldrops.bump_left == True:
-            #     print("Bump Left!")
-            #     is_colliding = True
-            #     collision = Directions.LEFT
-            # elif sensors.bumps_wheeldrops.bump_right == True:
-            #     print("Bump Right!")
-            #     is_colliding = True
-            #     collision = Directions.RIGHT
+            sensors = bot.sensors()
+            if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
+                print("Bump Middle!")
+                is_colliding = True
+                collision = Directions.FORWARD
+            elif sensors.bumps_wheeldrops.bump_left == True:
+                print("Bump Left!")
+                is_colliding = True
+                collision = Directions.LEFT
+            elif sensors.bumps_wheeldrops.bump_right == True:
+                print("Bump Right!")
+                is_colliding = True
+                collision = Directions.RIGHT
 
             if timeout <= 0:
                 is_cleaning = False
 
-            if has_task() == True:
+            if get_task() == True:
                 global state
                 state = State.NEUROTIC
                 return timeout
-
+            elif initial_state == State.NEUTRAL and timeout <= 200 and not post_success:
+                post_success = True
+                post_task()
+            
         if is_colliding:
             bot.drive_stop()
             time.sleep(0.1)
@@ -134,7 +174,7 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
         if timeout <= 0:
             is_cleaning = False
 
-    bot.motors_stop()
+    # bot.motors_stop()
     
     print("Done cleaning!")
     return 0
@@ -150,41 +190,41 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
     """
     print("Start neurotic cleaning!")
 
-    timeout = duration * 60
+    timeout = duration
 
     movement = directions[Directions.FORWARD] * vel
     is_cleaning = True
-    bot.motors(13)
+    # bot.motors(13)
 
     while is_cleaning:
         is_colliding = False
         collision = None
         while is_cleaning and not is_colliding:
-            bot.drive_direct(int(movement[0]), int(movement[1]))
+            # bot.drive_direct(int(movement[0]), int(movement[1]))
             time.sleep(0.3)
             timeout -= 0.3
 
-            # sensors = bot.sensors()
-            # if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
-            #     print("Bump Middle.")
-            #     is_colliding = True
-            #     collision = Directions.FORWARD
-            # elif sensors.bumps_wheeldrops.bump_left == True:
-            #     print("Bump Left.")
-            #     is_colliding = True
-            #     collision = Directions.LEFT
-            # elif sensors.bumps_wheeldrops.bump_right == True:
-            #     print("Bump Right.")
-            #     is_colliding = True
-            #     collision = Directions.RIGHT
+            sensors = bot.sensors()
+            if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
+                print("Bump Middle.")
+                is_colliding = True
+                collision = Directions.FORWARD
+            elif sensors.bumps_wheeldrops.bump_left == True:
+                print("Bump Left.")
+                is_colliding = True
+                collision = Directions.LEFT
+            elif sensors.bumps_wheeldrops.bump_right == True:
+                print("Bump Right.")
+                is_colliding = True
+                collision = Directions.RIGHT
 
             if timeout <= 0:
                 is_cleaning = False
 
-            if has_task() == False:
+            if get_task() == False:
                 global state
                 state = State.NEUTRAL
-                return timeout
+                return timeout * 60
 
         if is_colliding:
             bot.drive_stop()
@@ -232,8 +272,8 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
 if __name__ == "__main__":
     port = "COM4"
 
-    state = state.NEUTRAL
-    if has_task():
+    if get_task():
+        initial_state = State.NEUROTIC
         state = State.NEUROTIC
     
     try:
@@ -242,14 +282,14 @@ if __name__ == "__main__":
             bot.start()
             bot.full()
 
-            timeout = 5 * 60
+            timeout = 4
             while timeout > 0:
                 if state == State.NEUTRAL:
                     bot.leds(0, 0, 255)
-                    timeout = clean(bot, duration=(timeout / 60))
+                    timeout = clean(bot, duration=(timeout))
                 else:
                     bot.leds(8, 255, 128)
-                    timeout = clean_neurotic(bot, duration=(timeout / 60))
+                    timeout = clean_neurotic(bot, duration=(timeout))
         except NoConnectionError:
             print("No connection detected.")
         except Exception:
