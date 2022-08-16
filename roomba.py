@@ -28,6 +28,17 @@ state = State.NEUTRAL
 
 post_success = False
 
+
+def make_songs(bot: Create):
+    i = [72, 32, 71, 16, 69, 16, 74, 32, 72, 16, 71,
+         32, 71, 16, 69, 16, 67, 16, 71, 16, 71, 32]
+    bot.song(State.NEUTRAL, i)
+
+    j = [52, 64, 45, 32, 41, 16, 52, 32, 45,
+         32, 41, 32, 52, 32, 45, 16, 41, 16]
+    bot.song(State.NEUROTIC, j)
+
+
 def get_task():
     try:
         login_url = "https://robotportal.herokuapp.com/api/auth/login"
@@ -44,13 +55,14 @@ def get_task():
         tasks = requests.get(tasks_url, headers={"Authorization": auth}).json()
         if any(i["complete"] == False and i["skipped"] == False for i in tasks):
             return True
-        
+
         if tasks[len(tasks)-1]["skipped"] == True:
             return True
         return False
     except Exception:
         return False
-    
+
+
 def post_task():
     try:
         login_url = "https://robotportal.herokuapp.com/api/auth/login"
@@ -65,7 +77,8 @@ def post_task():
         auth_res = requests.post(login_url, json=credentials).json()
         token = "Bearer " + auth_res["token"]
 
-        info_res = requests.get(info_url, headers={"Authorization": token}).json()
+        info_res = requests.get(
+            info_url, headers={"Authorization": token}).json()
         uid = info_res["id"]
 
         # TODO: Calculate taskId
@@ -75,11 +88,13 @@ def post_task():
             "taskId": 1
         }
 
-        requests.post(tasks_url, json=user_task, headers={"Authorization": token}).json()
+        requests.post(tasks_url, json=user_task, headers={
+                      "Authorization": token}).json()
     except Exception:
         global post_success
         post_success = False
         return
+
 
 def clean(bot: Create, vel: int = 200, duration: int = 1):
     """
@@ -89,7 +104,7 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
         bot: Create class controlling Roomba.
         vel: Roomba movement speed.
         duration: The length of the cleaning cycle (minutes).
-    
+
     Returns:
         The time remaining in the cleaning cycle. 0 if cycle completed successfully.
     """
@@ -102,13 +117,16 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
     movement = directions[Directions.FORWARD] * vel
     is_cleaning = True
 
-    # bot.motors(13)
+    duration = bot.play_song(State.NEUTRAL)
+    time.sleep(duration)
+
+    bot.motors(13)
 
     while is_cleaning:
         is_colliding = False
         collision = None
         while is_cleaning and not is_colliding:
-            # bot.drive_direct(int(movement[0]), int(movement[1]))
+            bot.drive_direct(int(movement[0]), int(movement[1]))
             time.sleep(0.3)
             timeout -= 0.3
 
@@ -136,7 +154,7 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
             elif initial_state == State.NEUTRAL and timeout <= 200 and not post_success:
                 post_success = True
                 post_task()
-            
+
         if is_colliding:
             bot.drive_stop()
             time.sleep(0.1)
@@ -174,10 +192,14 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
         if timeout <= 0:
             is_cleaning = False
 
-    # bot.motors_stop()
-    
+    bot.motors_stop()
+
+    duration = bot.play_song(State.NEUTRAL)
+    time.sleep(duration)
+
     print("Done cleaning!")
     return 0
+
 
 def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
     """
@@ -194,13 +216,17 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
 
     movement = directions[Directions.FORWARD] * vel
     is_cleaning = True
-    # bot.motors(13)
+
+    duration = bot.play_song(State.NEUROTIC)
+    time.sleep(duration)
+
+    bot.motors(13)
 
     while is_cleaning:
         is_colliding = False
         collision = None
         while is_cleaning and not is_colliding:
-            # bot.drive_direct(int(movement[0]), int(movement[1]))
+            bot.drive_direct(int(movement[0]), int(movement[1]))
             time.sleep(0.3)
             timeout -= 0.3
 
@@ -227,6 +253,9 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
                 return timeout * 60
 
         if is_colliding:
+            duration = bot.play_song(State.NEUROTIC)
+            time.sleep(duration)
+
             bot.drive_stop()
             time.sleep(1)
             timeout -= 1
@@ -264,6 +293,10 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
             is_cleaning = False
 
     bot.motors_stop()
+
+    duration = bot.play_song(State.NEUROTIC)
+    time.sleep(duration)
+
     print("Done neurotic cleaning!")
 
     return 0
@@ -275,12 +308,14 @@ if __name__ == "__main__":
     if get_task():
         initial_state = State.NEUROTIC
         state = State.NEUROTIC
-    
+
     try:
         bot = Create(port=port)
         try:
             bot.start()
             bot.full()
+
+            make_songs(bot)
 
             timeout = 4
             while timeout > 0:
