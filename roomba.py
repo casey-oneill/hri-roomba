@@ -1,9 +1,10 @@
-from enum import Enum, IntEnum
+from enum import IntEnum
 from pycreate600 import Create
 from pycreate600 import NoConnectionError
 import numpy as np
 import requests
 import random
+import sys
 import time
 
 
@@ -14,7 +15,7 @@ class Directions(IntEnum):
     RIGHT = 3
 
 
-class State(Enum):
+class State(IntEnum):
     NEUTRAL = 0,
     NEUROTIC = 1
 
@@ -127,8 +128,8 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
         collision = None
         while is_cleaning and not is_colliding:
             bot.drive_direct(int(movement[0]), int(movement[1]))
-            time.sleep(0.3)
-            timeout -= 0.3
+            time.sleep(0.001)
+            timeout -= 0.001
 
             sensors = bot.sensors()
             if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
@@ -227,8 +228,8 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
         collision = None
         while is_cleaning and not is_colliding:
             bot.drive_direct(int(movement[0]), int(movement[1]))
-            time.sleep(0.3)
-            timeout -= 0.3
+            time.sleep(0.001)
+            timeout -= 0.001
 
             sensors = bot.sensors()
             if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
@@ -253,12 +254,13 @@ def clean_neurotic(bot: Create, vel: int = 100, duration: int = 1):
                 return timeout * 60
 
         if is_colliding:
-            duration = bot.play_song(State.NEUROTIC)
-            time.sleep(duration)
-
+            bot.motors_stop()
             bot.drive_stop()
             time.sleep(1)
             timeout -= 1
+
+            duration = bot.play_song(State.NEUROTIC)
+            time.sleep(duration)
 
             print("Changing directions.")
             movement = directions[Directions.BACK] * vel
@@ -317,7 +319,7 @@ if __name__ == "__main__":
 
             make_songs(bot)
 
-            timeout = 4
+            timeout = 4 * 60
             while timeout > 0:
                 if state == State.NEUTRAL:
                     bot.leds(0, 0, 255)
@@ -329,8 +331,9 @@ if __name__ == "__main__":
             print("No connection detected.")
         except Exception:
             print("Error occured.")
-        time.sleep(3)
     except KeyboardInterrupt:
         print("Goodbye!")
     except Exception:
         print("Unable to open serial connection.")
+
+    sys.exit()
