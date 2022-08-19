@@ -19,22 +19,19 @@ class State(IntEnum):
     NEUROTIC = 1
 
 
-directions = [np.array([1, 1]), np.array([-1, -1]),
-              np.array([0, 1]), np.array([1, 0])]
+directions = [np.array([1, 1]), np.array([-1, -1]), np.array([0, 1]), np.array([1, 0])]
 random.seed()
 
 
 def make_songs(bot: Create):
-    i = [72, 32, 71, 16, 69, 16, 74, 32, 72, 16, 71,
-         32, 71, 16, 69, 16, 67, 16, 71, 16, 71, 32]
+    i = [72, 32, 71, 16, 69, 16, 74, 32, 72, 16, 71, 32, 71, 16, 69, 16, 67, 16, 71, 16, 71, 32]
     bot.song(State.NEUTRAL, i)
 
-    j = [52, 64, 45, 32, 41, 16, 52, 32, 45,
-         32, 41, 32, 52, 32, 45, 16, 41, 16]
+    j = [52, 64, 45, 32, 41, 16, 52, 32, 45, 32, 41, 32, 52, 32, 45, 16, 41, 16]
     bot.song(State.NEUROTIC, j)
 
 
-def clean(bot: Create, vel: int = 200, duration: int = 1):
+def clean(bot: Create, vel: int = 300, duration: int = 1):
     """
     Start a neutral cleaning cycle.
 
@@ -49,6 +46,7 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
     print("Start cleaning!")
 
     timeout = duration * 60
+    turn_timeout = 0
 
     movement = directions[Directions.FORWARD] * vel
     is_cleaning = True
@@ -64,6 +62,11 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
 
         bot.motors(13)
         while is_cleaning and not is_colliding:
+            bot.leds(6, 0, 255)
+            if turn_timeout <= 0:
+                movement = directions[Directions.FORWARD] * vel
+            else:
+                turn_timeout -= 0.001
             bot.drive_direct(int(movement[0]), int(movement[1]))
             time.sleep(0.001)
             timeout -= 0.001
@@ -87,37 +90,26 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
 
         if is_colliding:
             bot.drive_stop()
-            time.sleep(0.1)
-            timeout -= 0.1
 
             print("Changing directions!")
             movement = directions[Directions.BACK] * vel
             bot.drive_direct(int(movement[0]), int(movement[1]))
-            time.sleep(0.5)
-            timeout -= 0.5
+            time.sleep(0.2)
+            timeout -= 0.2
 
             if collision == Directions.FORWARD:
                 print("Turning Around!")
                 i = random.randint(0, 1)
-                movement = directions[Directions.LEFT] * \
-                    vel if i == 0 else directions[Directions.RIGHT] * vel
-                bot.drive_direct(int(movement[0]), int(movement[1]))
-                time.sleep(1.8)
-                timeout -= 1.8
+                movement = directions[Directions.LEFT] * vel if i == 0 else directions[Directions.RIGHT] * vel
+                turn_timeout = 0.1
             elif collision == Directions.LEFT:
                 print("Turning Right!")
                 movement = directions[Directions.RIGHT] * vel
-                bot.drive_direct(int(movement[0]), int(movement[1]))
-                time.sleep(1.8)
-                timeout -= 1.8
+                turn_timeout = 0.1
             elif collision == Directions.RIGHT:
                 print("Turning Left!")
                 movement = directions[Directions.LEFT] * vel
-                bot.drive_direct(int(movement[0]), int(movement[1]))
-                time.sleep(1.8)
-                timeout -= 1.8
-
-            movement = directions[Directions.FORWARD] * vel
+                turn_timeout = 0.1
 
         if timeout <= 0:
             is_cleaning = False
@@ -132,7 +124,7 @@ def clean(bot: Create, vel: int = 200, duration: int = 1):
 
 
 if __name__ == "__main__":
-    port = "COM4"
+    port = "/dev/ttyUSB0"
 
     try:
         bot = Create(port=port)
@@ -143,7 +135,6 @@ if __name__ == "__main__":
             make_songs(bot)
 
             timeout = 4 * 60
-            bot.leds(0, 0, 255)
             clean(bot, duration=(timeout))
         except NoConnectionError:
             print("No connection detected.")
