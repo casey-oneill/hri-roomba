@@ -37,6 +37,11 @@ class Roomba(object):
 		"""
 		Constructor.
 		"""
+
+		# login credentials
+		self.username = "coneill"
+		self.password = "password"
+
 		self.directions = [np.array([1, 1]), np.array([-1, -1]), np.array([0, 1]), np.array([1, 0])]
 		self.power_button = ButtonState.RELEASED
 
@@ -70,17 +75,21 @@ class Roomba(object):
 	def has_task(self):
 		try:
 			login_url = "https://robotportal.herokuapp.com/api/auth/login"
-			tasks_url = "https://robotportal.herokuapp.com/api/users/1/tasks"
+			info_url = "https://robotportal.herokuapp.com/api/users/info"
+			tasks_url = "https://robotportal.herokuapp.com/api/users/{uid}/tasks"
 
 			credentials = {
-				"username": "user",
-				"password": "password"
+				"username": self.username,
+				"password": self.password
 			}
 
 			auth_res = requests.post(login_url, json=credentials).json()
-			auth = "Bearer " + auth_res["token"]
+			token = "Bearer " + auth_res["token"]
 
-			tasks = requests.get(tasks_url, headers={"Authorization": auth}).json()
+			info_res = requests.get(info_url, headers={"Authorization": token}).json()
+			uid = info_res["id"]
+
+			tasks = requests.get(tasks_url.format(uid = uid), headers={"Authorization": token}).json()
 			if any(i["complete"] == False and i["skipped"] == False for i in tasks):
 				return True
 
@@ -90,15 +99,15 @@ class Roomba(object):
 		except Exception:
 			return False
 
-	def post_task():
+	def post_task(self):
 		try:
 			login_url = "https://robotportal.herokuapp.com/api/auth/login"
 			info_url = "https://robotportal.herokuapp.com/api/users/info"
-			tasks_url = "https://robotportal.herokuapp.com/api/users/1/tasks"
+			tasks_url = "https://robotportal.herokuapp.com/api/users/{uid}/tasks"
 
 			credentials = {
-				"username": "user",
-				"password": "password"
+				"username": self.username,
+				"password": self.password
 			}
 
 			auth_res = requests.post(login_url, json=credentials).json()
@@ -107,8 +116,7 @@ class Roomba(object):
 			info_res = requests.get(info_url, headers={"Authorization": token}).json()
 			uid = info_res["id"]
 
-			# TODO: Calculate taskId
-			tasks_res = requests.get(tasks_url, headers={"Authorization": token}).json()
+			tasks_res = requests.get(tasks_url.format(uid = uid), headers={"Authorization": token}).json()
 			tid = len(tasks_res) + 1
 
 			if tid >= 3:
@@ -118,7 +126,7 @@ class Roomba(object):
 				"userId": uid,
 				"taskId": tid
 			}
-			requests.post(tasks_url, json=user_task, headers={"Authorization": token}).json()
+			requests.post(tasks_url.format(uid = uid), json=user_task, headers={"Authorization": token}).json()
 			return True
 		except Exception:
 			return False
@@ -137,9 +145,9 @@ class Roomba(object):
 		"""
 		print("Start cleaning!")
 
-		turn_time = 0.05
+		turn_time = 0.1
 		
-		timeout = duration * 60
+		timeout = time.monotonic() + duration * 60
 		turn_timeout = 0
 
 		movement = self.directions[Directions.FORWARD] * vel
@@ -147,8 +155,8 @@ class Roomba(object):
 
 		self.create.leds(6, 0, 255)
 
-		duration = self.create.play_song(Songs.NEUTRAL)
-		time.sleep(duration)
+		s_duration = self.create.play_song(Songs.NEUTRAL)
+		time.sleep(s_duration)
 
 		self.create.motors(13)
 
@@ -165,7 +173,6 @@ class Roomba(object):
 					turn_timeout -= 0.001
 				self.create.drive_direct(int(movement[0]), int(movement[1]))
 				time.sleep(0.001)
-				timeout -= 0.001
 
 				sensors = self.create.sensors()
 				if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
@@ -184,43 +191,39 @@ class Roomba(object):
 				if self.power_button == ButtonState.JUST_PRESSED:
 					is_cleaning = False
 				
-				if timeout <= 0:
+				if time.monotonic() >= timeout:
 					is_cleaning = False
 
 			if is_colliding:
 				self.create.drive_stop()
 
 				print("Changing directions!")
-				movement = self.directions[Directions.BACK] * vel
+				movement = self.directions[Directions.BACK] * (vel / 2)
 				self.create.drive_direct(int(movement[0]), int(movement[1]))
-				time.sleep(0.2)
-				timeout -= 0.2
+				time.sleep(0.35)
 
 				if collision == Directions.FORWARD:
 					print("Turning Around!")
 					i = random.randint(0, 1)
-					movement = self.directions[Directions.LEFT] * vel if i == 0 else self.directions[Directions.RIGHT] * vel
+					movement = self.directions[Directions.LEFT] * (vel / 2) if i == 0 else self.directions[Directions.RIGHT] * (vel / 2)
 					turn_timeout = turn_time
 				elif collision == Directions.LEFT:
 					print("Turning Right!")
-					movement = self.directions[Directions.RIGHT] * vel
+					movement = self.directions[Directions.RIGHT] * (vel / 2)
 					turn_timeout = turn_time
 				elif collision == Directions.RIGHT:
 					print("Turning Left!")
-					movement = self.directions[Directions.LEFT] * vel
+					movement = self.directions[Directions.LEFT] * (vel / 2)
 					turn_timeout = turn_time
-
-			if timeout <= 0:
-				is_cleaning = False
 
 		self.create.motors_stop()
 		self.create.drive_stop()
 
-		duration = self.create.play_song(Songs.NEUTRAL)
-		time.sleep(duration)
+		s_duration = self.create.play_song(Songs.NEUTRAL)
+		time.sleep(s_duration)
 
 		print("Done cleaning!")
-		return 0
+		return time.monotonic() >= timeout
 	
 	def clean_neurotic(self, vel: int = 75, duration: int = 1):
 		"""
@@ -238,7 +241,7 @@ class Roomba(object):
 
 		turn_time = 0.15
 
-		timeout = duration * 60
+		timeout = time.monotonic() + duration * 60
 		turn_timeout = 0
 		random_timeout = 0.3 # Roomba randomly changes direction
 
@@ -247,8 +250,8 @@ class Roomba(object):
 
 		self.create.leds(8, 255, 128)
 
-		duration = self.create.play_song(Songs.NEUROTIC)
-		time.sleep(duration)
+		s_duration = self.create.play_song(Songs.NEUROTIC)
+		time.sleep(s_duration)
 
 		self.create.motors(13)
 
@@ -272,8 +275,8 @@ class Roomba(object):
 					self.create.motors_stop()
 					self.create.drive_stop()
 					
-					duration = self.create.play_song(Songs.ANXIOUS)
-					time.sleep(duration)
+					s_duration = self.create.play_song(Songs.ANXIOUS)
+					time.sleep(s_duration)
 
 					i = random.randint(0, 1)
 					movement = self.directions[Directions.LEFT] * vel if i == 0 else self.directions[Directions.RIGHT] * vel
@@ -281,17 +284,15 @@ class Roomba(object):
 					turn_timeout = turn_time * 2
 					random_timeout = random.randint(4, 10) / 10
 
-					duration = self.create.play_song(Songs.ANXIOUS)
-					time.sleep(duration)
+					s_duration = self.create.play_song(Songs.ANXIOUS)
+					time.sleep(s_duration)
 
 					self.create.motors(13)
 				elif turn_timeout == 0 and random_timeout > 0:
-					print(random_timeout)
 					random_timeout -= 0.001
 
 				self.create.drive_direct(int(movement[0]), int(movement[1]))
 				time.sleep(0.001)
-				timeout -= 0.001
 
 				sensors = self.create.sensors()
 				if sensors.bumps_wheeldrops.bump_left == True and sensors.bumps_wheeldrops.bump_right == True:
@@ -310,21 +311,20 @@ class Roomba(object):
 				if self.power_button == ButtonState.JUST_PRESSED:
 					is_cleaning = False
 				
-				if timeout <= 0:
+				if time.monotonic() >= timeout:
 					is_cleaning = False
 
 			if is_colliding:
 				self.create.motors_stop()
 				self.create.drive_stop()
 				
-				duration = self.create.play_song(Songs.ANXIOUS)
-				time.sleep(duration)
+				s_duration = self.create.play_song(Songs.ANXIOUS)
+				time.sleep(s_duration)
 
 				print("Changing directions.")
 				movement = self.directions[Directions.BACK] * vel
 				self.create.drive_direct(int(movement[0]), int(movement[1]))
 				time.sleep(0.4)
-				timeout -= 0.4
 
 				if collision == Directions.FORWARD:
 					print("Turning Around.")
@@ -340,17 +340,14 @@ class Roomba(object):
 					movement = self.directions[Directions.LEFT] * vel
 					turn_timeout = turn_time
 
-			if timeout <= 0:
-				is_cleaning = False
-
 		self.create.motors_stop()
 		self.create.drive_stop()
 
-		duration = self.create.play_song(Songs.NEUROTIC)
-		time.sleep(duration)
+		s_duration = self.create.play_song(Songs.NEUROTIC)
+		time.sleep(s_duration)
 
 		print("Done neurotic cleaning.")
-		return 0
+		return time.monotonic() >= timeout
 
 
 if __name__ == "__main__":
@@ -365,10 +362,10 @@ if __name__ == "__main__":
 				if roomba.has_task():
 					roomba.clean_neurotic(duration=5)
 				else:
-					roomba.clean(duration=3)
-					while roomba.post_task() == False:
-						time.sleep(1)
-					roomba.clean_neurotic(duration=2)
+					if roomba.clean(duration=3):
+						while roomba.post_task() == False:
+							time.sleep(1)
+						roomba.clean_neurotic(duration=2)
 			time.sleep(0.01)
 	except KeyboardInterrupt:
 		print("Exiting...")
